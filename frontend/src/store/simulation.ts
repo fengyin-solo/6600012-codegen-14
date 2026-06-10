@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { SimMode, SimulationParams, Particle } from '../types'
+import type { SimMode, SimulationParams, Particle, ColorMappingMode } from '../types'
 
 const COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c084fc','#f472b6','#38bdf8']
 
@@ -33,6 +33,7 @@ interface SimStore extends SimulationParams {
   setFps: (fps: number) => void
   setTotalEnergy: (e: number) => void
   applyPreset: (preset: Partial<SimulationParams>) => void
+  setColorMapping: (mode: ColorMappingMode) => void
 }
 
 export const useSimStore = create<SimStore>((set, get) => ({
@@ -44,6 +45,7 @@ export const useSimStore = create<SimStore>((set, get) => ({
   attractorStrength: 5,
   slowMotion: false,
   paused: false,
+  colorMapping: 'none',
   particles: randomParticles(300),
   fps: 0,
   totalEnergy: 0,
@@ -61,4 +63,5 @@ export const useSimStore = create<SimStore>((set, get) => ({
     const { particleCount } = get()
     set({ particles: randomParticles(particleCount) })
   },
+  setColorMapping: (mode) => set({ colorMapping: mode }),
 }))

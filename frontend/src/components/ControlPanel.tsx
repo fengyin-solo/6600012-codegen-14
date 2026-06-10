@@ -1,11 +1,18 @@
 import { useSimStore } from '../store/simulation'
-import type { SimMode } from '../types'
+import type { SimMode, ColorMappingMode } from '../types'
 
 const MODES: { value: SimMode; label: string; icon: string }[] = [
   { value: 'gravity', label: '重力吸引', icon: '🌍' },
   { value: 'collision', label: '弹性碰撞', icon: '💥' },
   { value: 'fluid', label: '流体模拟', icon: '💧' },
   { value: 'vortex', label: '漩涡旋转', icon: '🌀' },
+]
+
+const COLOR_MAPPINGS: { value: ColorMappingMode; label: string; icon: string }[] = [
+  { value: 'none', label: '默认', icon: '🎨' },
+  { value: 'speed', label: '速度', icon: '⚡' },
+  { value: 'mass', label: '质量', icon: '⚖️' },
+  { value: 'force', label: '受力', icon: '💪' },
 ]
 
 const PRESETS = [
@@ -56,6 +63,35 @@ export default function ControlPanel() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Color Mapping */}
+      <div>
+        <label className="text-xs text-gray-400 block mb-1">颜色映射</label>
+        <div className="grid grid-cols-4 gap-1">
+          {COLOR_MAPPINGS.map(m => (
+            <button
+              key={m.value}
+              onClick={() => store.setColorMapping(m.value)}
+              className={`px-2 py-2 rounded text-xs font-medium transition ${
+                store.colorMapping === m.value
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              <div className="text-base">{m.icon}</div>
+              <div className="text-[10px] mt-0.5">{m.label}</div>
+            </button>
+          ))}
+        </div>
+        {store.colorMapping !== 'none' && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+            <div className="flex-1 h-2 rounded" style={{
+              background: 'linear-gradient(to right, #4d96ff, #6bcb77, #ffd93d, #ff6b6b)'
+            }} />
+            <span>低 → 高</span>
+          </div>
+        )}
       </div>
 
       {/* Particle Count */}

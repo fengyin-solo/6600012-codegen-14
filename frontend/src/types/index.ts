@@ -1,5 +1,7 @@
 export type SimMode = 'gravity' | 'collision' | 'fluid' | 'vortex'
 
+export type ColorMappingMode = 'none' | 'speed' | 'mass' | 'force'
+
 export interface Particle {
   id: number
   position: [number, number, number]
@@ -18,6 +20,7 @@ export interface SimulationParams {
   attractorStrength: number
   slowMotion: boolean
   paused: boolean
+  colorMapping: ColorMappingMode
 }
 
 export interface Preset {

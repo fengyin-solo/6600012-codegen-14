@@ -1,11 +1,31 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useSimStore } from '../store/simulation'
 import { applyPhysics } from '../simulations/physics'
+import { applyColorMapping } from '../simulations/colorMapping'
 
 const tempObject = new THREE.Object3D()
 const tempColor = new THREE.Color()
+
+function applyStaticColorMapping(
+  particles: { velocity: [number, number, number]; mass: number; color: string }[],
+  mode: string,
+  colorArray: Float32Array
+): void {
+  if (mode === 'none') {
+    particles.forEach((p, i) => {
+      tempColor.set(p.color)
+      colorArray[i * 3] = tempColor.r
+      colorArray[i * 3 + 1] = tempColor.g
+      colorArray[i * 3 + 2] = tempColor.b
+    })
+  } else if (mode === 'speed') {
+    applyColorMapping(particles as any, 'speed', colorArray)
+  } else if (mode === 'mass') {
+    applyColorMapping(particles as any, 'mass', colorArray)
+  }
+}
 
 export default function ParticleSystem() {
   const meshRef = useRef<THREE.InstancedMesh>(null)
@@ -17,6 +37,7 @@ export default function ParticleSystem() {
   const attractorStrength = useSimStore(s => s.attractorStrength)
   const slowMotion = useSimStore(s => s.slowMotion)
   const paused = useSimStore(s => s.paused)
+  const colorMapping = useSimStore(s => s.colorMapping)
   const setFps = useSimStore(s => s.setFps)
   const setTotalEnergy = useSimStore(s => s.setTotalEnergy)
 
@@ -25,21 +46,27 @@ export default function ParticleSystem() {
     [particles.length]
   )
 
-  useMemo(() => {
-    particles.forEach((p, i) => {
-      tempColor.set(p.color)
-      colorArray[i * 3] = tempColor.r
-      colorArray[i * 3 + 1] = tempColor.g
-      colorArray[i * 3 + 2] = tempColor.b
-    })
-  }, [particles, colorArray])
+  const prevVelocitiesRef = useRef<[number, number, number][]>([])
+
+  useEffect(() => {
+    if (colorMapping !== 'force') {
+      applyStaticColorMapping(particles, colorMapping, colorArray)
+      if (meshRef.current) {
+        const geometry = meshRef.current.geometry
+        const colorAttr = geometry.getAttribute('color') as THREE.InstancedBufferAttribute
+        colorAttr.needsUpdate = true
+      }
+    }
+    prevVelocitiesRef.current = particles.map(p => [...p.velocity])
+  }, [particles, colorArray, colorMapping])
 
   const fpsCounter = useRef({ frames: 0, lastTime: performance.now() })
 
   useFrame((_, delta) => {
-    if (!meshRef.current || paused) return
+    if (!meshRef.current) return
+
     const dt = slowMotion ? delta * 0.1 : delta
-    const updated = applyPhysics(particles, mode, gravity, damping, bounce, attractorStrength, dt)
+    const updated = paused ? particles : applyPhysics(particles, mode, gravity, damping, bounce, attractorStrength, dt)
 
     let totalEnergy = 0
     updated.forEach((p, i) => {
@@ -54,7 +81,35 @@ export default function ParticleSystem() {
     meshRef.current.instanceMatrix.needsUpdate = true
     setTotalEnergy(totalEnergy)
 
-    // FPS counter
+    if (colorMapping !== 'none' && !paused) {
+      applyColorMapping(
+        updated,
+        colorMapping as 'speed' | 'mass' | 'force',
+        colorArray,
+        prevVelocitiesRef.current,
+        dt
+      )
+      const geometry = meshRef.current.geometry
+      const colorAttr = geometry.getAttribute('color') as THREE.InstancedBufferAttribute
+      colorAttr.needsUpdate = true
+    } else if (colorMapping === 'none') {
+      updated.forEach((p, i) => {
+        tempColor.set(p.color)
+        colorArray[i * 3] = tempColor.r
+        colorArray[i * 3 + 1] = tempColor.g
+        colorArray[i * 3 + 2] = tempColor.b
+      })
+      if (meshRef.current) {
+        const geometry = meshRef.current.geometry
+        const colorAttr = geometry.getAttribute('color') as THREE.InstancedBufferAttribute
+        colorAttr.needsUpdate = true
+      }
+    }
+
+    if (!paused) {
+      prevVelocitiesRef.current = updated.map(p => [...p.velocity])
+    }
+
     fpsCounter.current.frames++
     const now = performance.now()
     if (now - fpsCounter.current.lastTime > 1000) {
